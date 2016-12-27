@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+
+<beans xmlns="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:p="http://www.springframework.org/schema/p"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans
+     http://www.springframework.org/schema/beans/spring-beans-3.1.xsd">
+	<!-- error forward -->
+	<bean id="error" p:url="/WEB-INF/jsp/common/error.jsp" class="org.springframework.web.servlet.view.JstlView" />
+	<!-- success forward -->
+	<bean id="success" p:url="/WEB-INF/jsp/common/success.jsp" class="org.springframework.web.servlet.view.JstlView" />
+</beans>
