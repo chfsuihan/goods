@@ -1,31 +1,31 @@
-
+ï»¿
 CREATE PROCEDURE informix.sp_name_info_sjjr() returning int;
 define ps_begin_date  DATETIME YEAR TO SECOND;
 define li_errcode integer;
 
 set debug file to '/home/informix/sp_name_info_sjjr.txt';
 trace on;
------------------------------------------------------------------ÆóÒµ---------------------------------------------------------------------------------------------
---ÏîÄ¿´úÂë
+-----------------------------------------------------------------ä¼ä¸š---------------------------------------------------------------------------------------------
+--é¡¹ç›®ä»£ç 
 
 create temp table temp_app_type (type_id varchar(10),type_name varchar(50))  with no log;
-insert into temp_app_type(type_id,type_name) values('1','Éê°ì');
-insert into temp_app_type(type_id,type_name) values('2','±ä¸ü');
-insert into temp_app_type(type_id,type_name) values('3','ÑÓÆÚ');
-insert into temp_app_type(type_id,type_name) values('4','±ä¸ü');
-insert into temp_app_type(type_id,type_name) values('5','ÆäËü');
-insert into temp_app_type(type_id,type_name) values('6','ÆäËü');
-insert into temp_app_type(type_id,type_name) values('7','³·Ïú');
-insert into temp_app_type(type_id,type_name) values('8','×ªÈÃ');
-insert into temp_app_type(type_id,type_name) values('9','×ªÈÃ');
+insert into temp_app_type(type_id,type_name) values('1','ç”³åŠž');
+insert into temp_app_type(type_id,type_name) values('2','å˜æ›´');
+insert into temp_app_type(type_id,type_name) values('3','å»¶æœŸ');
+insert into temp_app_type(type_id,type_name) values('4','å˜æ›´');
+insert into temp_app_type(type_id,type_name) values('5','å…¶å®ƒ');
+insert into temp_app_type(type_id,type_name) values('6','å…¶å®ƒ');
+insert into temp_app_type(type_id,type_name) values('7','æ’¤é”€');
+insert into temp_app_type(type_id,type_name) values('8','è½¬è®©');
+insert into temp_app_type(type_id,type_name) values('9','è½¬è®©');
 --11?
 
 
---²éÑ¯ÉÏÒ»´Î³éÈ¡Ê±¼ä
+--æŸ¥è¯¢ä¸Šä¸€æ¬¡æŠ½å–æ—¶é—´
 select last_extract_time into ps_begin_date
 from sgb_data_extract_log;
 
---²éÑ¯ÆóÒµÉêÇë°¸±í
+--æŸ¥è¯¢ä¼ä¸šç”³è¯·æ¡ˆè¡¨
 select app_no,check_name,accept_organ,check_date,accept_date,app_case_type,status_id
 	 from etpsname@qrypermitsoc:name_app 
 where accept_date >'2016-7-1 00:00:00' and accept_date<'2016-8-1 00:00:00' and check_name_id is not null
@@ -33,7 +33,7 @@ into temp tmp_etps_app with no log;
 
 create index tmp_app_no_idx on tmp_etps_app(app_no);
 
---²éÑ¯°ìÀíÈÕÆÚ×îÐ¡µÄ
+--æŸ¥è¯¢åŠžç†æ—¥æœŸæœ€å°çš„
 select a.app_no,min(b.subscript_date) as subscription_date from tmp_etps_app a,etpsname@qrypermitsoc:name_opinion b
 where a.app_no= b.app_no
 group by 1
@@ -47,29 +47,29 @@ into temp temp3 with no log;
 
 create index t_tmp3_app_no on temp3(app_no);
 
---²éÑ¯ÉêÇë±í
+--æŸ¥è¯¢ç”³è¯·è¡¨
 select a.*,b.staff_name,b.user_id,b.result,b.text_opnn
  from tmp_etps_app a left join temp3 b
 on a.app_no = b.app_no 
 into temp tmp_etps with no log;
 
---²éÑ¯ÉêÇë°¸¾ßÌå±í
+--æŸ¥è¯¢ç”³è¯·æ¡ˆå…·ä½“è¡¨
 select a.*,b.result
  from tmp_etps_app a left join etpsname@qrypermitsoc:name_opinion b
-on a.app_no = b.app_no where b.result='ÊÜÀí'
+on a.app_no = b.app_no where b.result='å—ç†'
 into temp tmp_jc_apply with no log;
 
---JC_APPLICATION Ìí¼ÓÆóÒµ
+--JC_APPLICATION æ·»åŠ ä¼ä¸š
 select app_no||'SHGSSH' as st_pid,
 	'SHGSSH'||app_no||'0720' as st_apply_id,
 	'SHGSSH' as st_src,
 	app_no as st_src_pid,
 	'0720' as st_item_id,
-	'ÆóÒµÃû³ÆÔ¤ÏÈºË×¼µÇ¼Ç' as st_item_name,
+	'ä¼ä¸šåç§°é¢„å…ˆæ ¸å‡†ç™»è®°' as st_item_name,
 	'SHGSSH' as st_org_id,
-	'ÉÏº£ÊÐ¹¤ÉÌÐÐÕþ¹ÜÀí¾Ö' as st_org_name,
+	'ä¸Šæµ·å¸‚å·¥å•†è¡Œæ”¿ç®¡ç†å±€' as st_org_name,
 	accept_organ as st_dept_name,
-	'ÆóÒµÃû³ÆÔ¤ÏÈºË×¼µÇ¼Ç' as st_pro_name,
+	'ä¼ä¸šåç§°é¢„å…ˆæ ¸å‡†ç™»è®°' as st_pro_name,
 	check_date as dt_do_time,
 	staff_name as st_person_name,
 	user_id as st_person_no,
@@ -80,22 +80,22 @@ select app_no||'SHGSSH' as st_pid,
 	'' as nm_commitment_days,
 	'' as nm_real_days,
 	check_name as st_applicant_name,
-	'·¨ÈË' as ST_APPLICANT_TYPE,
+	'æ³•äºº' as ST_APPLICANT_TYPE,
 	'' as ST_CONTACT,
 	'' as ST_CONTACT_PHONE,
 	'' as ST_CONTACT_MOBILE,
 	'' as ST_CONTACT_EMAIL,
-	'´°¿ÚÌá½»' as  ST_APPLY_METHOD,
+	'çª—å£æäº¤' as  ST_APPLY_METHOD,
 	'' as ST_APPLY_CONTENT,
-	'' as dt_intime,--²»Ïê
-	'' as st_ctct_prs_name,--²»Ïê
-	'' as st_ctct_prs_phone,--²»Ïê
-	'' as st_ctct_prs_mobile,--²»Ïê
+	'' as dt_intime,--ä¸è¯¦
+	'' as st_ctct_prs_name,--ä¸è¯¦
+	'' as st_ctct_prs_phone,--ä¸è¯¦
+	'' as st_ctct_prs_mobile,--ä¸è¯¦
 	'' as ST_WEBAPP_PASS,
 	accept_date as DT_CLCTDOCS_TIME,
-	'' as ST_APPLY_DOC_NO,--²»Ïê
-	'' as dt_end,--²»Ïê
-	'' as dt_begin,--²»Ïê
+	'' as ST_APPLY_DOC_NO,--ä¸è¯¦
+	'' as dt_end,--ä¸è¯¦
+	'' as dt_begin,--ä¸è¯¦
 	'' as ST_CONTACT_DOCU_TYPE,
 	'' as ST_CONTACT_DOCU_NO
  from tmp_etps a
@@ -108,26 +108,26 @@ select '0720'||'SHGSSH'||a.app_no as st_apply_id,
 	'' as st_suid,
 	a.app_no as ST_SRC_APPLY_ID,
 	'SHGSSH' as st_src,
-	'' as st_org_name,--²»Ïê
-	'' as st_org_id,--²»Ïê
+	'' as st_org_name,--ä¸è¯¦
+	'' as st_org_id,--ä¸è¯¦
 	'0720' as st_item_id,
-	'ÆóÒµÃû³ÆÔ¤ÏÈºË×¼µÇ¼Ç' as st_item_name,
+	'ä¼ä¸šåç§°é¢„å…ˆæ ¸å‡†ç™»è®°' as st_item_name,
 	'' as st_pro_name,
 	a.accept_organ as st_dept_name,
     d.type_name as st_apply_type, 
 	c.name as st_region,
-	'µ¥²¿ÃÅ' as st_type,
+	'å•éƒ¨é—¨' as st_type,
 	a.accept_date as  dt_apply_time,
 	a.check_date as dt_accept_time,
-	'' as dt_unsertake_time,--²»Ïê
-	'' as dt_audit_time,--²»Ïê
-	'' as dt_approval_time,--²»Ïê
-	'' as dt_finish_time,--²»Ïê
+	'' as dt_unsertake_time,--ä¸è¯¦
+	'' as dt_audit_time,--ä¸è¯¦
+	'' as dt_approval_time,--ä¸è¯¦
+	'' as dt_finish_time,--ä¸è¯¦
 	'' as nm_law_days,
 	'' as nm_days,
 	'' st_is_public,
 	a.status_id as st_status,
-	'' as st_disp_status,--²»Ïê
+	'' as st_disp_status,--ä¸è¯¦
 	result as st_do_result,
 	'' as st_yj,
 	'' as st_huangp,
@@ -160,15 +160,15 @@ into temp tmp_etps_apply with no log;
  
  
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
---ÉêÇë±í
+--ç”³è¯·è¡¨
 INSERT INTO JC_APPLICATION
 SELECT * FROM tmp1;
 
---¾ßÌå±í
+--å…·ä½“è¡¨
 insert into JC_APPLY
 SELECT * FROM tmp2;
 
---ÊÜÀí±í
+--å—ç†è¡¨
 /*insert into JC_AUDIT
 select * from tmp6;*/
 	
