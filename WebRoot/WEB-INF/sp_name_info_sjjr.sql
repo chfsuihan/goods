@@ -1,4 +1,4 @@
-﻿
+
 CREATE PROCEDURE informix.sp_name_info_sjjr() returning int;
 define ps_begin_date  DATETIME YEAR TO SECOND;
 define li_errcode integer;
@@ -23,12 +23,13 @@ insert into temp_app_type(type_id,type_name) values('9','转让');
 
 --查询上一次抽取时间
 select last_extract_time into ps_begin_date
-from sgb_data_extract_log;
+from sgb_data_extract_log  where module_name = 'naming';
 
 --查询企业申请案表
 select app_no,check_name,accept_organ,check_date,accept_date,app_case_type,status_id
 	 from etpsname@qrypermitsoc:name_app 
-where accept_date >'2016-7-1 00:00:00' and accept_date<'2016-8-1 00:00:00' and check_name_id is not null
+where accept_date >'2016-7-1 00:00:00' and accept_date<'2016-8-1 00:00:00' 
+-- and check_name_id is not null
 into temp tmp_etps_app with no log;
 
 create index tmp_app_no_idx on tmp_etps_app(app_no);
@@ -59,9 +60,16 @@ select a.*,b.result
 on a.app_no = b.app_no where b.result='受理'
 into temp tmp_jc_apply with no log;
 
+--审核过的申请案
+select a.*,b.result,b.user_id,b.staff_name  
+ from tmp_etps_app a left join etpsname@qrypermitsoc:name_opinion b
+on a.app_no = b.app_no  where ( b.actn_id='0001')
+into temp tmp_jc_audit with no log;
+
+
 --JC_APPLICATION 添加企业
 select app_no||'SHGSSH' as st_pid,
-	'SHGSSH'||app_no||'0720' as st_apply_id,
+	'0720'||'SHGSSH'||app_no as st_apply_id,
 	'SHGSSH' as st_src,
 	app_no as st_src_pid,
 	'0720' as st_item_id,
@@ -69,7 +77,7 @@ select app_no||'SHGSSH' as st_pid,
 	'SHGSSH' as st_org_id,
 	'上海市工商行政管理局' as st_org_name,
 	accept_organ as st_dept_name,
-	'企业名称预先核准登记' as st_pro_name,
+	check_name as st_pro_name,
 	check_date as dt_do_time,
 	staff_name as st_person_name,
 	user_id as st_person_no,
@@ -108,11 +116,11 @@ select '0720'||'SHGSSH'||a.app_no as st_apply_id,
 	'' as st_suid,
 	a.app_no as ST_SRC_APPLY_ID,
 	'SHGSSH' as st_src,
-	'' as st_org_name,--不详
-	'' as st_org_id,--不详
+	'上海市工商行政管理局' as st_org_name,--不详
+	'SHGSSH' as st_org_id,--不详
 	'0720' as st_item_id,
 	'企业名称预先核准登记' as st_item_name,
-	'' as st_pro_name,
+	check_name as st_pro_name,
 	a.accept_organ as st_dept_name,
     d.type_name as st_apply_type, 
 	c.name as st_region,
@@ -152,25 +160,53 @@ on a.accept_organ = c.code left join temp_app_type d
 on a.app_case_type = d.type_id
 into temp tmp_etps_apply with no log;
 
- select * from tmp_etps_application
- into temp tmp1 with no log;
- 
- select * from tmp_etps_apply
- into temp tmp2 with no log;
- 
+--审核表
+select app_no||'SHGSSH' as ST_PID,
+'0720'||'SHGSSH'||app_no as st_apply_id,
+'SHGSSH' as st_src,
+app_no,
+'0720' as st_item_id,
+'企业名称预先核准登记' as st_item_name,
+check_name as st_pro_name,
+accept_organ as st_dept_name,
+check_date as dt_do_time,
+staff_name as st_person_name,
+user_id as st_person_no,
+'' as ST_PERSON_DUTY,--TODO ST_PERSON_DUTY
+'审核通过' as result,
+text_opnn as st_opinion,
+'' as st_days_type, --TODO 5?
+'' as nm_commitment_days,--TODO 5?
+'' as nm_real_days,
+'' as dt_intime,
+'' as dt_end,
+'' as dt_begin
+from tmp_jc_audit a
+into temp tmp_etps_audit;
  
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 --申请表
 INSERT INTO JC_APPLICATION
-SELECT * FROM tmp1;
+SELECT * FROM tmp_etps_application;
 
 --具体表
 insert into JC_APPLY
-SELECT * FROM tmp2;
+SELECT * FROM tmp_etps_apply;
 
 --受理表
-/*insert into JC_AUDIT
-select * from tmp6;*/
+insert into JC_ACCEPT
+select  st_pid,st_apply_id,st_src,st_src_pid,st_item_id,st_item_name,
+st_org_id,st_org_name,st_dept_name,st_pro_name,dt_do_time,
+b.st_person_name,b.st_person_no,b.st_person_duty,'受理','同意',
+'','',1,'受理','',b.st_person_name,b.st_person_duty,'',st_src_pid as ST_ACCEPT_INFO_NO,'',
+'','','','','','','','','',''
+from tmp_etps_application b;
+
+--审核表
+insert into JC_AUDIT
+select * from tmp_etps_audit;
+
+update sgb_data_extract_log set last_extract_time =current where module_name = 'naming';
 	
 return 0;
 end procedure;
