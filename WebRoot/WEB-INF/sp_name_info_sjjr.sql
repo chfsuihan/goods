@@ -28,7 +28,7 @@ from sgb_data_extract_log  where module_name = 'naming';
 --查询企业申请案表
 select app_no,check_name,accept_organ,check_date,accept_date,app_case_type,status_id
 	 from etpsname@qrypermitsoc:name_app 
-where accept_date >'2016-7-1 00:00:00' and accept_date<'2016-8-1 00:00:00' 
+where accept_date >=ps_begin_date
 -- and check_name_id is not null
 into temp tmp_etps_app with no log;
 
@@ -61,7 +61,7 @@ on a.app_no = b.app_no where b.result='受理'
 into temp tmp_jc_apply with no log;
 
 --审核过的申请案
-select a.*,b.result,b.user_id,b.staff_name  
+select a.*,b.result,b.user_id,b.staff_name,b.text_opnn
  from tmp_etps_app a left join etpsname@qrypermitsoc:name_opinion b
 on a.app_no = b.app_no  where ( b.actn_id='0001')
 into temp tmp_jc_audit with no log;
@@ -164,20 +164,22 @@ into temp tmp_etps_apply with no log;
 select app_no||'SHGSSH' as ST_PID,
 '0720'||'SHGSSH'||app_no as st_apply_id,
 'SHGSSH' as st_src,
-app_no,
+app_no as ST_SRC_PID,
 '0720' as st_item_id,
 '企业名称预先核准登记' as st_item_name,
-check_name as st_pro_name,
+'SHGSSH' as st_org_id,
+'上海市工商行政管理局' as st_org_name,
 accept_organ as st_dept_name,
+check_name as st_pro_name,
 check_date as dt_do_time,
 staff_name as st_person_name,
 user_id as st_person_no,
 '' as ST_PERSON_DUTY,--TODO ST_PERSON_DUTY
-'审核通过' as result,
+'审核通过' as st_result,
 text_opnn as st_opinion,
-'' as st_days_type, --TODO 5?
+'' as st_days_type, 
 '' as nm_commitment_days,--TODO 5?
-'' as nm_real_days,
+'' as nm_real_days,--TODO 5?
 '' as dt_intime,
 '' as dt_end,
 '' as dt_begin
@@ -205,9 +207,9 @@ from tmp_etps_application b;
 --审核表
 insert into JC_AUDIT
 select * from tmp_etps_audit;
-
+--更新时间
 update sgb_data_extract_log set last_extract_time =current where module_name = 'naming';
-	
+
 return 0;
 end procedure;
 GO
