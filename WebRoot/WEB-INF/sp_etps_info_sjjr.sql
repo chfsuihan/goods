@@ -1,4 +1,4 @@
-﻿
+
 CREATE PROCEDURE informix.sp_etps_info_sjjr() returning int;
 define ps_begin_date  DATETIME YEAR TO SECOND;
 define li_errcode integer;
@@ -33,11 +33,12 @@ select last_extract_time into ps_begin_date
 from sgb_data_extract_log;
 
 --查询企业申请案表
-select app_no,check_name,accept_organ,approve_date(@TODO check_date),change_items_gb(@TODO ?),accept_date,
+select app_no,etps_name,apply_organ,approve_date,change_items_gb,accept_date,
 case when sub_obj_id ='40' then '40'
-	 when sub_obj_id in ('G1','G2') then 'G0' else '99' end sub_obj_type(@TODO  ? 企业类型需查字典),app_date(@TODO accept_date),app_type_id(@TODO app_case_type)
-	 from etpsname@qrypermitsoc:name_app 
-where app_date >= ps_begin_date and etps_id(@TODO check_name_id) is not null
+	 when sub_obj_id in ('G1','G2') then 'G0' else '99' end sub_obj_type,app_date,app_type_id
+	 from etps@qrypermitsoc:etps_app_actv 
+where app_date >= ps_begin_date 
+--and etps_id is not null
 into temp tmp_etps_app with no log;
 
 insert into tmp_etps_app
@@ -84,14 +85,26 @@ into temp tmp_etps with no log;
 select a.*,c.persn_name,c.cert_type,c.cert_no,b.status_id,b.result_name
  from tmp_etps_app a left join etps@qrypermitsoc:etps_app_node_actv b
 on a.app_no = b.app_no left join etps@qrypermitsoc:etps_contact_actv c
-on a.app_no = c.app_no where b.result_name='收件'
+on a.app_no = c.app_no where (b.result_name='收件' or b.result_id='01')
 into temp tmp_jc_apply with no log;
 
 insert into tmp_jc_apply
 select a.*,c.persn_name,c.cert_type,c.cert_no,b.status_id,b.result_name
  from tmp_etps_app a left join etps@qrypermitsoc:etps_app_node_hs b
 on a.app_no = b.app_no left join etps@qrypermitsoc:etps_contact_hs c
-on a.app_no = c.app_no where b.result_name='收件';
+on a.app_no = c.app_no where (b.result_name='收件' or b.result_id='01');
+
+--审核过的申请案
+select a.*,b.status_id,b.result_name,b.user_id,b.staff_name  
+ from tmp_etps_app a left join etps@qrypermitsoc:etps_app_node_actv b
+on a.app_no = b.app_no  where ( b.actn_id='0040')
+into temp tmp_jc_audit with no log;
+
+insert into tmp_jc_audit
+select a.*,b.status_id,b.result_name,b.user_id,b.staff_name 
+ from tmp_etps_app a left join etps@qrypermitsoc:etps_app_node_hs b
+on a.app_no = b.app_no  where ( b.actn_id='0040');
+
 
 --JC_APPLICATION 添加企业
 select app_no||'SHGSSH' as st_pid,
@@ -103,7 +116,7 @@ select app_no||'SHGSSH' as st_pid,
 	'SHGSSH' as st_org_id,
 	'上海市工商行政管理局' as st_org_name,
 	apply_organ as st_dept_name,
-	b.st_pro_name,
+	etps_name as st_pro_name,
 	approve_date as dt_do_time,
 	staff_name as st_person_name,
 	user_id as st_person_no,
@@ -147,7 +160,7 @@ select b.event_code||'SHGSSH'||app_no as st_apply_id,
 	'' as st_org_id,--不详
 	b.event_code as st_item_id,
 	b.st_pro_name as st_item_name,
-	'' as st_pro_name,
+	etps_name as st_pro_name,  --add
 	apply_organ as st_dept_name,
     d.type_name as st_apply_type, 
 	c.name as st_region,
@@ -188,25 +201,46 @@ on a.apply_organ = c.code left join temp_app_type d
 on a.app_type_id = d.type_id
 into temp tmp_etps_apply with no log;
 
- select * from tmp_etps_application
- into temp tmp1 with no log;
- 
- select * from tmp_etps_apply
- into temp tmp2 with no log;
- 
- 
+select app_no||'SHGSSH' as ST_PID,b.event_code||'SHGSSH'||app_no as st_apply_id,
+'SHGSSH' as st_src,app_no,b.event_code as st_item_id,
+b.st_pro_name as st_item_name,etps_name as st_pro_name, apply_organ as st_dept_name,
+approve_date as dt_do_time,staff_name as st_person_name,user_id as st_person_no,'' as duty,
+'审核通过' as result,text_opnn as st_opinion,
+	'' as st_days_type, 
+	'' as nm_commitment_days,
+	'' as nm_real_days,'' as dt_intime,'' as dt_end,'' as dt_begin
+
+from tmp_jc_audit a
+left join temp_st_pro_name b on a.sub_obj_type = b.sub_obj_id
+into temp tmp_etps_audit;
+
+
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 --申请表
 INSERT INTO JC_APPLICATION
-SELECT * FROM tmp1;
+SELECT * FROM tmp_etps_application;
 
 --具体表
 insert into JC_APPLY
-SELECT * FROM tmp2;
+SELECT * FROM tmp_etps_apply;
 
 --受理表
-/*insert into JC_AUDIT
-select * from tmp6;*/
+insert into JC_ACCEPT
+select  st_pid,st_apply_id,st_src,st_src_pid,st_item_id,st_item_name,
+st_org_id,st_org_name,st_dept_name,st_pro_name,dt_do_time,
+b.st_person_name,b.st_person_no,b.st_person_duty,'受理','同意',
+'','',1,'受理','',b.st_person_name,b.st_person_duty,'',st_src_pid as ST_ACCEPT_INFO_NO,'',
+'','','','','','','','','',''
+from tmp_etps_application b ;
+
+--审核表
+insert into JC_AUDIT
+select * from tmp_etps_audit;
+
+drop table tmp_etps_application;
+drop table tmp_etps_apply;
+
+
 	
 return 0;
 end procedure;
