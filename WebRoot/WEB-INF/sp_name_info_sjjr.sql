@@ -2,6 +2,10 @@
 CREATE PROCEDURE informix.sp_name_info_sjjr() returning int;
 define ps_begin_date  DATETIME YEAR TO SECOND;
 define li_errcode integer;
+on exception
+	set li_errcode
+	return li_errcode;
+end exception; 
 
 set debug file to '/home/informix/sp_name_info_sjjr.txt';
 trace on;
@@ -63,7 +67,7 @@ into temp tmp_jc_apply with no log;
 --审核过的申请案
 select a.*,b.result,b.user_id,b.staff_name,b.text_opnn
  from tmp_etps_app a left join etpsname@qrypermitsoc:name_opinion b
-on a.app_no = b.app_no  where ( b.actn_id='0001')
+on a.app_no = b.app_no  where ( b.result='核准' or b.result='通过' or b.result='驳回')
 into temp tmp_jc_audit with no log;
 
 
@@ -174,8 +178,11 @@ check_name as st_pro_name,
 check_date as dt_do_time,
 staff_name as st_person_name,
 user_id as st_person_no,
-'' as ST_PERSON_DUTY,--TODO ST_PERSON_DUTY
-'审核通过' as st_result,
+'' as ST_PERSON_DUTY,
+
+case when result in ('核准','通过') then '审核通过'
+	 else '审核不通过' end as st_result,
+	 
 text_opnn as st_opinion,
 '' as st_days_type, 
 '' as nm_commitment_days,--TODO 5?
@@ -185,6 +192,36 @@ text_opnn as st_opinion,
 '' as dt_begin
 from tmp_jc_audit a
 into temp tmp_etps_audit;
+
+--决定环节
+select app_no||'SHGSSH' as ST_PID,
+'0720'||'SHGSSH'||app_no as st_apply_id,
+'SHGSSH' as st_src,app_no,
+'0720' as st_item_id,
+'企业名称预先核准登记' as st_item_name,
+'SHGSSH' as st_org_id,
+'上海市工商行政管理局' as st_org_name,
+accept_organ as st_dept_name,
+check_name as st_pro_name, 
+check_date as dt_do_time,
+staff_name as st_person_name,
+user_id as st_person_no,
+'' as duty,
+
+case when result in ('核准','通过') then '审核通过'
+	 else '审核不通过' end as st_result,
+	 
+text_opnn as st_opinion,
+'' as st_days_type,
+'' as nm_commitment_days,
+'' as nm_real_days,
+'是' as ST_AUTHORIZE_RESULT,
+'' as ST_UNAUTHORIZE_REASON,
+'' as dt_intime,
+'' as dt_end,
+'' as dt_begin
+from tmp_jc_audit a
+into temp tmp_etps_authorize;
  
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 --申请表
@@ -207,6 +244,11 @@ from tmp_etps_application b;
 --审核表
 insert into JC_AUDIT
 select * from tmp_etps_audit;
+
+--决定表
+insert into JC_AUTHORIZE 
+select * from tmp_etps_authorize;
+
 --更新时间
 update sgb_data_extract_log set last_extract_time =current where module_name = 'naming';
 
