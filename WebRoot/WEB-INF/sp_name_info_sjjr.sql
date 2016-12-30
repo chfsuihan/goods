@@ -2,10 +2,7 @@
 CREATE PROCEDURE informix.sp_name_info_sjjr() returning int;
 define ps_begin_date  DATETIME YEAR TO SECOND;
 define li_errcode integer;
-on exception
-	set li_errcode
-	return li_errcode;
-end exception; 
+
 
 set debug file to '/home/informix/sp_name_info_sjjr.txt';
 trace on;
@@ -30,11 +27,12 @@ select last_extract_time into ps_begin_date
 from sgb_data_extract_log  where module_name = 'naming';
 
 --查询企业申请案表
-select app_no,check_name,accept_organ,check_date,accept_date,app_case_type,status_id
+select app_no,check_name,accept_organ,check_date,accept_date,app_case_type,status_id,net_flag
 	 from etpsname@qrypermitsoc:name_app 
 where accept_date >=ps_begin_date
 -- and check_name_id is not null
 into temp tmp_etps_app with no log;
+
 
 create index tmp_app_no_idx on tmp_etps_app(app_no);
 
@@ -57,6 +55,14 @@ select a.*,b.staff_name,b.user_id,b.result,b.text_opnn
  from tmp_etps_app a left join temp3 b
 on a.app_no = b.app_no 
 into temp tmp_etps with no log;
+
+--针对预设不通过的申请案：查询企业申请案表
+select  a.app_no,a.check_name,a.accept_organ,a.last_time,a.app_date,a.app_case_type,a.status_id, b.staff_name ,b.user_id ,b.result, b.text_opnn
+	 from bizhall@qrypermitsoc:name_app a 
+	 left join  bizhall@qrypermitsoc:name_opinion b 
+	 on a.app_no = b.app_no 
+where a.app_date >=ps_begin_date and b.result= '预审未通过'
+into temp tmp_bizhall_etps_app with no log;
 
 --查询申请案具体表
 select a.*,b.staff_name,b.user_id,b.result,b.text_opnn
@@ -98,13 +104,16 @@ select app_no||'SHGSSH' as st_pid,
 	'' as ST_CONTACT_PHONE,
 	'' as ST_CONTACT_MOBILE,
 	'' as ST_CONTACT_EMAIL,
-	'窗口提交' as  ST_APPLY_METHOD,
+	case when net_flag ='1' then '网上提交'
+	 else '窗口提交' end as ST_APPLY_METHOD,
+	 
 	'' as ST_APPLY_CONTENT,
 	'' as dt_intime,--不详
 	'' as st_ctct_prs_name,--不详
 	'' as st_ctct_prs_phone,--不详
 	'' as st_ctct_prs_mobile,--不详
 	'' as ST_WEBAPP_PASS,
+	
 	accept_date as DT_CLCTDOCS_TIME,
 	'' as ST_APPLY_DOC_NO,--不详
 	'' as dt_end,--不详
@@ -114,6 +123,48 @@ select app_no||'SHGSSH' as st_pid,
  from tmp_etps a
 into temp tmp_etps_application with no log;
 
+
+--针对预审不通过的记录往JC_APPLICATION 添加企业
+insert into tmp_etps_application 
+	select app_no||'SHGSSH' as st_pid,
+	'0720'||'SHGSSH'||app_no as st_apply_id,
+	'SHGSSH' as st_src,
+	app_no as st_src_pid,
+	'0720' as st_item_id,
+	'企业名称预先核准登记' as st_item_name,
+	'SHGSSH' as st_org_id,
+	'上海市工商行政管理局' as st_org_name,
+	accept_organ as st_dept_name,
+	check_name as st_pro_name,
+	last_time as dt_do_time,
+	staff_name as st_person_name,
+	user_id as st_person_no,
+	'' as st_person_duty,
+	'外网提交预审' as st_result,
+	text_opnn as st_opinion,
+	'' as st_days_type, 
+	'' as nm_commitment_days,
+	'' as nm_real_days,
+	check_name as st_applicant_name,
+	'法人' as ST_APPLICANT_TYPE,
+	'' as ST_CONTACT,
+	'' as ST_CONTACT_PHONE,
+	'' as ST_CONTACT_MOBILE,
+	'' as ST_CONTACT_EMAIL,
+	'网上提交' as ST_APPLY_METHOD,
+	'' as ST_APPLY_CONTENT,
+	'' as dt_intime,--不详
+	'' as st_ctct_prs_name,--不详
+	'' as st_ctct_prs_phone,--不详
+	'' as st_ctct_prs_mobile,--不详
+	'否' as ST_WEBAPP_PASS, 
+	app_date as DT_CLCTDOCS_TIME,
+	'' as ST_APPLY_DOC_NO,--不详
+	'' as dt_end,--不详
+	'' as dt_begin,--不详
+	'' as ST_CONTACT_DOCU_TYPE,
+	'' as ST_CONTACT_DOCU_NO
+ from tmp_bizhall_etps_app a;
 
 
 --JC_APPLY
@@ -165,6 +216,55 @@ on a.accept_organ = c.code left join temp_app_type d
 on a.app_case_type = d.type_id
 into temp tmp_etps_apply with no log;
 
+--针对预审不通过的记录往JC_APPLY里插入数据
+insert into tmp_etps_apply
+	select '0720'||'SHGSSH'||a.app_no as st_apply_id,
+	'' as st_suid,
+	a.app_no as ST_SRC_APPLY_ID,
+	'SHGSSH' as st_src,
+	'上海市工商行政管理局' as st_org_name,--不详
+	'SHGSSH' as st_org_id,--不详
+	'0720' as st_item_id,
+	'企业名称预先核准登记' as st_item_name,
+	check_name as st_pro_name,
+	a.accept_organ as st_dept_name,
+    d.type_name as st_apply_type, 
+	c.name as st_region,
+	'单部门' as st_type,
+	a.app_date as  dt_apply_time,
+	a.last_time as dt_accept_time,
+	'' as dt_unsertake_time,--不详
+	'' as dt_audit_time,--不详
+	'' as dt_approval_time,--不详
+	'' as dt_finish_time,--不详
+	'' as nm_law_days,
+	'' as nm_days,
+	'' st_is_public,
+	a.status_id as st_status,
+	'' as st_disp_status,--不详
+	result as st_do_result,
+	'' as st_yj,
+	'' as st_huangp,
+	'' as st_hongp,
+	'' as st_dc,
+	'' as st_exp,
+	'' as st_cp,
+	'' as st_rule_check,
+	'' as dt_intime,
+	a.app_no as st_project_id, 
+	'' as st_apply_person,
+	'' as st_reg_address, 
+	'' as st_item_type, 
+	'' as st_bl_node_name, 
+	'' as ST_APP_TYPE,
+	'' as st_sub_item_id, 
+	'' as st_sub_item_name, 
+	'' as st_applicant_docu_type, 
+	'' as st_applicant_docu_no
+from tmp_bizhall_etps_app a left join framework@commonsoc:organ_node c
+on a.accept_organ = c.code left join temp_app_type d
+on a.app_case_type = d.type_id;
+
 
 --jc_accept
 select app_no||'SHGSSH' as st_pid,
@@ -207,6 +307,49 @@ select app_no||'SHGSSH' as st_pid,
 	'' as ST_CONTACT_DOCU_NO
  from tmp_jc_apply a
 into temp tmp_etps_accept with no log;
+
+
+--针对预审不通过的记录往JC_ACCEPT里插入数据
+insert into tmp_etps_accept
+select app_no||'SHGSSH' as st_pid,
+	'0720'||'SHGSSH'||app_no as st_apply_id,
+	'SHGSSH' as st_src,
+	app_no as st_src_pid,
+	'0720' as st_item_id,
+	'企业名称预先核准登记' as st_item_name,
+	'SHGSSH' as st_org_id,
+	'上海市工商行政管理局' as st_org_name,
+	accept_organ as st_dept_name,
+	check_name as st_pro_name,
+	last_time as dt_do_time,
+	staff_name as st_person_name,
+	user_id as st_person_no,
+	'' as st_person_duty,
+	result as st_result,
+	text_opnn as st_opinion,
+	'' as st_days_type, 
+	'' as nm_commitment_days,
+	'' as nm_real_days,
+	check_name as st_applicant_name,
+	'法人' as ST_APPLICANT_TYPE,
+	'' as ST_CONTACT,
+	'' as ST_CONTACT_PHONE,
+	'' as ST_CONTACT_MOBILE,
+	'' as ST_CONTACT_EMAIL,
+	'网上提交' as  ST_APPLY_METHOD,
+	'' as ST_APPLY_CONTENT,
+	'' as dt_intime,--不详
+	'' as st_ctct_prs_name,--不详
+	'' as st_ctct_prs_phone,--不详
+	'' as st_ctct_prs_mobile,--不详
+	'否' as ST_WEBAPP_PASS,
+	app_date as DT_CLCTDOCS_TIME,
+	'' as ST_APPLY_DOC_NO,--不详
+	'' as dt_end,--不详
+	'' as dt_begin,--不详
+	'' as ST_CONTACT_DOCU_TYPE,
+	'' as ST_CONTACT_DOCU_NO
+ from tmp_bizhall_etps_app a;
 
 --审核表
 select app_no||'SHGSSH' as ST_PID,
