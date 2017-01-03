@@ -2,7 +2,10 @@
 CREATE PROCEDURE informix.sp_name_info_sjjr() returning int;
 define ps_begin_date  DATETIME YEAR TO SECOND;
 define li_errcode integer;
-
+on exception
+	set li_errcode
+	return li_errcode;
+end exception; 
 
 set debug file to '/home/informix/sp_name_info_sjjr.txt';
 trace on;
@@ -112,7 +115,15 @@ select app_no||'SHGSSH' as st_pid,
 	'' as st_ctct_prs_name,--不详
 	'' as st_ctct_prs_phone,--不详
 	'' as st_ctct_prs_mobile,--不详
-	'' as ST_WEBAPP_PASS,
+	case 
+		when  net_flag ='1' then 
+			case when status_id ='0002' then '是'
+				when status_id ='7014' then ''
+				else '否'
+			end
+		else
+		''
+	end as ST_WEBAPP_PASS,
 	
 	accept_date as DT_CLCTDOCS_TIME,
 	'' as ST_APPLY_DOC_NO,--不详
@@ -292,13 +303,22 @@ select app_no||'SHGSSH' as st_pid,
 	'' as ST_CONTACT_PHONE,
 	'' as ST_CONTACT_MOBILE,
 	'' as ST_CONTACT_EMAIL,
-	'窗口提交' as  ST_APPLY_METHOD,
+	case when net_flag ='1' then '网上提交'
+	 else '窗口提交' end as ST_APPLY_METHOD,
 	'' as ST_APPLY_CONTENT,
 	'' as dt_intime,--不详
 	'' as st_ctct_prs_name,--不详
 	'' as st_ctct_prs_phone,--不详
 	'' as st_ctct_prs_mobile,--不详
-	'' as ST_WEBAPP_PASS,
+	case 
+		when  net_flag ='1' then 
+			case when status_id ='0002' then '是'
+				when status_id ='7014' then ''
+				else '否'
+			end
+		else
+		''
+	end as ST_WEBAPP_PASS,
 	accept_date as DT_CLCTDOCS_TIME,
 	'' as ST_APPLY_DOC_NO,--不详
 	'' as dt_end,--不详
@@ -402,7 +422,8 @@ text_opnn as st_opinion,
 '' as st_days_type,
 '' as nm_commitment_days,
 '' as nm_real_days,
-'是' as ST_AUTHORIZE_RESULT,
+case when result in ('核准','通过') then '是'
+	 else '否' end   as ST_AUTHORIZE_RESULT,
 '' as ST_UNAUTHORIZE_REASON,
 '' as dt_intime,
 '' as dt_end,
@@ -445,6 +466,20 @@ select * from tmp_etps_authorize;
 
 --更新时间
 update sgb_data_extract_log set last_extract_time =current where module_name = 'naming';
+
+drop table tmp_etps_application;
+drop table tmp_etps_apply;
+drop table tmp_jc_audit;
+drop table tmp_etps_audit;
+drop table tmp_etps_authorize;
+drop table tmp_bizhall_etps_app;
+drop table temp2;
+drop table temp3;
+drop table temp_app_type;
+drop table tmp_etps_app;
+drop table tmp_etps;
+drop table tmp_jc_apply;
+drop table	tmp_etps_accept;
 
 return 0;
 end procedure;
