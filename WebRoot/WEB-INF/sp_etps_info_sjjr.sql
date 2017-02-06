@@ -30,7 +30,7 @@ insert into temp_app_type(type_id,type_name) values('14','变更');
 
 --查询上一次抽取时间
 select last_extract_time into ps_begin_date
-from sgb_data_extract_log;
+from sgb_data_extract_log where module_name = 'dj';
 
 --查询企业申请案表
 select app_no,etps_name,apply_organ,approve_date,change_items_gb,accept_date,
@@ -95,20 +95,20 @@ on a.app_no = b.app_no left join etps@qrypermitsoc:etps_contact_hs c
 on a.app_no = c.app_no where (b.result_name='收件' or b.result_id='01');
 
 --审核过的申请案
-select a.*,b.status_id,b.result_name,b.user_id,b.staff_name  
+select a.*,b.status_id,b.result_name,b.user_id,b.staff_name,b.text_opnn   
  from tmp_etps_app a left join etps@qrypermitsoc:etps_app_node_actv b
 on a.app_no = b.app_no  where ( b.actn_id='0040')
 into temp tmp_jc_audit with no log;
 
 insert into tmp_jc_audit
-select a.*,b.status_id,b.result_name,b.user_id,b.staff_name 
+select a.*,b.status_id,b.result_name,b.user_id,b.staff_name,b.text_opnn 
  from tmp_etps_app a left join etps@qrypermitsoc:etps_app_node_hs b
 on a.app_no = b.app_no  where ( b.actn_id='0040');
 
 
 --JC_APPLICATION 添加企业
 select app_no||'SHGSSH' as st_pid,
-	'SHGSSH'||app_no||b.event_code as st_apply_id,
+	b.event_code||'SHGSSH'||app_no as st_apply_id,
 	'SHGSSH' as st_src,
 	app_no as st_src_pid,
 	b.event_code as st_item_id,
@@ -203,17 +203,29 @@ into temp tmp_etps_apply with no log;
 
 select app_no||'SHGSSH' as ST_PID,b.event_code||'SHGSSH'||app_no as st_apply_id,
 'SHGSSH' as st_src,app_no,b.event_code as st_item_id,
-b.st_pro_name as st_item_name,etps_name as st_pro_name, apply_organ as st_dept_name,
+b.st_pro_name as st_item_name,'SHGSSH' as st_org_id,'上海市工商行政管理局' as st_org_name,
+apply_organ as st_dept_name,etps_name as st_pro_name, 
 approve_date as dt_do_time,staff_name as st_person_name,user_id as st_person_no,'' as duty,
-'审核通过' as result,text_opnn as st_opinion,
+'审核通过' as result,text_opnn as st_opinion,     ---有没有不通过的情况，那还要处理一下
 	'' as st_days_type, 
 	'' as nm_commitment_days,
 	'' as nm_real_days,'' as dt_intime,'' as dt_end,'' as dt_begin
-
 from tmp_jc_audit a
 left join temp_st_pro_name b on a.sub_obj_type = b.sub_obj_id
 into temp tmp_etps_audit;
 
+--决定环节
+select app_no||'SHGSSH' as ST_PID,b.event_code||'SHGSSH'||app_no as st_apply_id,
+'SHGSSH' as st_src,app_no,b.event_code as st_item_id,
+b.st_pro_name as st_item_name,'SHGSSH' as st_org_id,'上海市工商行政管理局' as st_org_name,
+apply_organ as st_dept_name,etps_name as st_pro_name, 
+approve_date as dt_do_time,staff_name as st_person_name,user_id as st_person_no,'' as duty,
+'审核通过' as result,text_opnn as st_opinion,     ---有没有不通过的情况，那还要处理一下
+	'' as st_days_type, '' as nm_commitment_days,'' as nm_real_days,
+'是' as ST_AUTHORIZE_RESULT,'' as ST_UNAUTHORIZE_REASON,'' as dt_intime,'' as dt_end,'' as dt_begin
+from tmp_jc_audit a
+left join temp_st_pro_name b on a.sub_obj_type = b.sub_obj_id
+into temp tmp_etps_authorize;
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 --申请表
@@ -237,10 +249,18 @@ from tmp_etps_application b ;
 insert into JC_AUDIT
 select * from tmp_etps_audit;
 
+insert into JC_AUTHORIZE 
+select * from tmp_etps_authorize;
+
+
 drop table tmp_etps_application;
 drop table tmp_etps_apply;
+drop table tmp_jc_audit;
+drop table  tmp_etps_audit;
+drop table tmp_etps_authorize;
 
-
+--更新周期;
+update sgb_data_extract_log set last_extract_time =current where module_name = 'dj';
 	
 return 0;
 end procedure;

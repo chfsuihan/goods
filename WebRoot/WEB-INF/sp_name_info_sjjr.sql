@@ -7,7 +7,7 @@ on exception
 	return li_errcode;
 end exception; 
 
-set debug file to '/home/informix/sp_name_info_sjjr.txt';
+set debug file to '/tmp/sp_name_info_sjjr.txt';
 trace on;
 -----------------------------------------------------------------企业---------------------------------------------------------------------------------------------
 --项目代码
@@ -90,7 +90,7 @@ select app_no||'SHGSSH' as st_pid,
 	'企业名称预先核准登记' as st_item_name,
 	'SHGSSH' as st_org_id,
 	'上海市工商行政管理局' as st_org_name,
-	accept_organ as st_dept_name,
+	c.name as st_dept_name,
 	check_name as st_pro_name,
 	check_date as dt_do_time,
 	staff_name as st_person_name,
@@ -131,7 +131,8 @@ select app_no||'SHGSSH' as st_pid,
 	'' as dt_begin,--不详
 	'' as ST_CONTACT_DOCU_TYPE,
 	'' as ST_CONTACT_DOCU_NO
- from tmp_etps a
+ from tmp_etps a  left join framework@commonsoc:organ_node c
+on a.accept_organ = c.code  
 into temp tmp_etps_application with no log;
 
 
@@ -145,7 +146,7 @@ insert into tmp_etps_application
 	'企业名称预先核准登记' as st_item_name,
 	'SHGSSH' as st_org_id,
 	'上海市工商行政管理局' as st_org_name,
-	accept_organ as st_dept_name,
+	c.name as st_dept_name,
 	check_name as st_pro_name,
 	last_time as dt_do_time,
 	staff_name as st_person_name,
@@ -175,7 +176,8 @@ insert into tmp_etps_application
 	'' as dt_begin,--不详
 	'' as ST_CONTACT_DOCU_TYPE,
 	'' as ST_CONTACT_DOCU_NO
- from tmp_bizhall_etps_app a;
+ from tmp_bizhall_etps_app a  left join framework@commonsoc:organ_node c
+ on a.accept_organ = c.code ;
 
 
 --JC_APPLY
@@ -188,7 +190,7 @@ select '0720'||'SHGSSH'||a.app_no as st_apply_id,
 	'0720' as st_item_id,
 	'企业名称预先核准登记' as st_item_name,
 	check_name as st_pro_name,
-	a.accept_organ as st_dept_name,
+	c.name as st_dept_name,
     d.type_name as st_apply_type, 
 	c.name as st_region,
 	'单部门' as st_type,
@@ -213,7 +215,7 @@ select '0720'||'SHGSSH'||a.app_no as st_apply_id,
 	'' as st_rule_check,
 	'' as dt_intime,
 	a.app_no as st_project_id, 
-	'' as st_apply_person,
+	check_name as st_apply_person,
 	'' as st_reg_address, 
 	'' as st_item_type, 
 	'' as st_bl_node_name, 
@@ -238,7 +240,7 @@ insert into tmp_etps_apply
 	'0720' as st_item_id,
 	'企业名称预先核准登记' as st_item_name,
 	check_name as st_pro_name,
-	a.accept_organ as st_dept_name,
+	c.name as st_dept_name,
     d.type_name as st_apply_type, 
 	c.name as st_region,
 	'单部门' as st_type,
@@ -286,7 +288,7 @@ select app_no||'SHGSSH' as st_pid,
 	'企业名称预先核准登记' as st_item_name,
 	'SHGSSH' as st_org_id,
 	'上海市工商行政管理局' as st_org_name,
-	accept_organ as st_dept_name,
+	c.name as st_dept_name,
 	check_name as st_pro_name,
 	check_date as dt_do_time,
 	staff_name as st_person_name,
@@ -325,7 +327,8 @@ select app_no||'SHGSSH' as st_pid,
 	'' as dt_begin,--不详
 	'' as ST_CONTACT_DOCU_TYPE,
 	'' as ST_CONTACT_DOCU_NO
- from tmp_jc_apply a
+ from tmp_jc_apply a  left join framework@commonsoc:organ_node c
+on  a.accept_organ = c.code
 into temp tmp_etps_accept with no log;
 
 
@@ -338,8 +341,8 @@ select app_no||'SHGSSH' as st_pid,
 	'0720' as st_item_id,
 	'企业名称预先核准登记' as st_item_name,
 	'SHGSSH' as st_org_id,
-	'上海市工商行政管理局' as st_org_name,
-	accept_organ as st_dept_name,
+                   	'上海市工商行政管理局' as st_org_name,
+	c.name as st_dept_name,
 	check_name as st_pro_name,
 	last_time as dt_do_time,
 	staff_name as st_person_name,
@@ -369,7 +372,10 @@ select app_no||'SHGSSH' as st_pid,
 	'' as dt_begin,--不详
 	'' as ST_CONTACT_DOCU_TYPE,
 	'' as ST_CONTACT_DOCU_NO
- from tmp_bizhall_etps_app a;
+ from tmp_bizhall_etps_app a
+ left join framework@commonsoc:organ_node c
+ on  a.accept_organ = c.code
+ ;
 
 --审核表
 select app_no||'SHGSSH' as ST_PID,
@@ -380,7 +386,7 @@ app_no as ST_SRC_PID,
 '企业名称预先核准登记' as st_item_name,
 'SHGSSH' as st_org_id,
 '上海市工商行政管理局' as st_org_name,
-accept_organ as st_dept_name,
+c.name as st_dept_name,
 check_name as st_pro_name,
 check_date as dt_do_time,
 staff_name as st_person_name,
@@ -398,6 +404,8 @@ text_opnn as st_opinion,
 '' as dt_end,
 '' as dt_begin
 from tmp_jc_audit a
+left join framework@commonsoc:organ_node c
+on  a.accept_organ = c.code
 into temp tmp_etps_audit;
 
 --决定环节
@@ -408,7 +416,7 @@ select app_no||'SHGSSH' as ST_PID,
 '企业名称预先核准登记' as st_item_name,
 'SHGSSH' as st_org_id,
 '上海市工商行政管理局' as st_org_name,
-accept_organ as st_dept_name,
+c.name as st_dept_name,
 check_name as st_pro_name, 
 check_date as dt_do_time,
 staff_name as st_person_name,
@@ -428,7 +436,8 @@ case when result in ('核准','通过') then '是'
 '' as dt_intime,
 '' as dt_end,
 '' as dt_begin
-from tmp_jc_audit a
+from tmp_jc_audit a left join framework@commonsoc:organ_node c
+on  a.accept_organ = c.code
 into temp tmp_etps_authorize;
  
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -459,7 +468,7 @@ from tmp_etps_accept b;
 --审核表
 insert into JC_AUDIT
 select * from tmp_etps_audit;
-
+    
 --决定表
 insert into JC_AUTHORIZE 
 select * from tmp_etps_authorize;

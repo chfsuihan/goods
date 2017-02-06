@@ -15,8 +15,8 @@
 	default-autowire="byName">
 
 	<!-- 自动扫描组件，过滤在springmvc-servlet.xml中配置的controller类，如果不去除会影响事务管理的。-->
-	<context:component-scan base-package="cn">
-		<context:exclude-filter expression="org.springframework.stereotype.Controller" type="annotation" />
+	<context:component-scan base-package="cn.itcast">
+		
 	</context:component-scan>
 
 	<!-- 隐式注册AutowiredAnnotationBeanPostProcessor、CommonAnnotationBeanPostProcessor、PersistenceAnnotationBeanPostProcessor以及RequiredAnnotationBeanPostProcessor -->
@@ -31,7 +31,7 @@
 	<!-- 配置ehcache与spring整合实现 -->
 	<!-- cacheManager工厂类，指定ehcache.xml的位置 -->
 	<bean id="cacheManagerFactory" class="org.springframework.cache.ehcache.EhCacheManagerFactoryBean">
-		<property name="configLocation" value="classpath:conf/ehcache.xml" />
+		<property name="configLocation" value="classpath:config/ehcache.xml" />
 	</bean>
 
 	<!-- 声明cacheManager -->
